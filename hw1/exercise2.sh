@@ -1,36 +1,44 @@
 #!/bin/bash
 
 echo "Enter a sequence of numbers followed by 'end'"
-max=0
-valid=true
+MAX=0
+VALID=true
 i=1
-re='^[0-9]+$'
-while [ $valid ]
+RE='^[0-9]+$'
+# infinite loop until break
+while [ $VALID ]
 do
-  read num
-  if [ $num = 'end' ];
+  # take input
+  read NUM
+  # check if input is 'end'
+  # if it is, break loop
+  if [ $NUM = 'end' ];
   then
     break
-  fi
-  if ! [[ $num =~ $re ]]; 
+  # check if input is integer
+  # if it is not, break loop
+  elif ! [[ $NUM =~ $RE ]]; 
   then
-    if [ $num != 'end' ];
-    then
-      echo "Please enter only integer or 'end' !!"
-      break
-    fi
+    echo "Please enter only integer or 'end' !!"
+    break
   fi
+  # if the first input is entered
+  # then it is max number
   if [ $i -eq 1 ]
   then
-    max=$num
+    MAX=$NUM
   else
-    if [ $num -gt $max ]
+    # check if input is greater 
+    # than max number
+    # if it is, assign to max
+    if [ $NUM -gt $MAX ]
     then
-      max=$num
+      MAX=$NUM
     fi
   fi
+  # increment input number
   i=$((i+1))
 done
 
-echo "Maximum: $max"
+echo "Maximum: $MAX"
 
