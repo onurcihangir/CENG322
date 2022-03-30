@@ -57,7 +57,7 @@ void dequeue(Queue *q)
     }
     // set temp to first node
     node *temp = q->front;
-    // set first node to next node 
+    // set first node to next node
     q->front = q->front->next;
 
     // if front node is empty
@@ -77,7 +77,7 @@ void enqueue(Queue *q, char *str)
     temp->str = str;
     temp->next = NULL;
     // if last node is empty, it means queue is empty
-    // set first and last node to new node 
+    // set first and last node to new node
     if (q->rear == NULL)
     {
         q->front = temp;
@@ -145,7 +145,7 @@ int dir(char **args)
     }
     else
     {
-        fprintf(stderr, "getcwd() error");
+        fprintf(stderr, "getcwd() error\n");
         return 1;
     }
     return 1;
@@ -168,6 +168,56 @@ int history(Queue *q)
     return 1;
 }
 
+int other_commands(char **args)
+{
+    int status;
+    pid_t pid, wpid;
+    int ampersand = 0;
+    int i = 0;
+    // we need this while block for
+    // changing the '&' in the end of command
+    // because we do not want to give '&' as an
+    // argument in execvp().
+    while (args[i] != NULL)
+    {
+        // check if argument is '&'
+        if (strcmp(args[i], "&") == 0)
+        {
+            // there is ampersand
+            ampersand = 1;
+            // change ampersand in args array
+            args[i] = '\0';
+        }
+        i++;
+    }
+    // fork error
+    if ((pid = fork()) < 0)
+    {
+        fprintf(stderr, "*** ERROR: forking child process failed\n");
+        exit(1);
+    }
+    // child process
+    else if (pid == 0)
+    {
+        if (execvp(args[0], args) < 0)
+        { // If it is not built in function that defined from us ,execute it in child
+            fprintf(stderr, "Error: execvp() failed\n");
+        }
+        exit(1);
+    }
+    // parent process
+    else
+    {
+        // if there is not ampersand
+        if (ampersand == 0)
+        {
+            // wait for the child process
+            while ((wpid = wait(&status)) > 0);
+        }
+    }
+    return 1;
+}
+
 int exec_commands(char **args, Queue *q)
 {
     if (strcmp(args[0], "bye") == 0)
@@ -185,6 +235,10 @@ int exec_commands(char **args, Queue *q)
     else if (strcmp(args[0], "history") == 0)
     {
         return history(q);
+    }
+    else
+    {
+        return other_commands(args);
     }
 }
 
@@ -206,6 +260,7 @@ char **parse_args(char *line)
 {
     char *token;
     int index = 0;
+    // create array of strings
     char **args = malloc(sizeof(char *) * MAX_ARG);
     if (!args)
     {
@@ -237,12 +292,12 @@ void shell()
         printf("myshell>");
         // read line
         char *line = read_args();
-        // create copy of read line
+        // create copy of line
         // otherwise when we parse line
         // command in history queue will change
         char *str = malloc(sizeof(char) * MAX_CHAR);
         memcpy(str, line, sizeof(char) * MAX_CHAR);
-        // add copy of read line
+        // add copy of line to history queue
         enqueue(q, str);
         // parse arguments
         char **args = parse_args(line);
