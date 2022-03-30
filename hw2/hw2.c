@@ -101,13 +101,13 @@ void enqueue(Queue *q, char *str)
     }
 }
 
-int bye(char **args)
+void bye()
 {
     // bye command simply returns 0 to finish the loop
-    return 0;
+    exit(0);
 }
 
-int cd(char **args)
+void cd(char **args)
 {
     // check if second argument is NULL or empty string
     if (args[1] == NULL || strcmp(args[1], "") == 0)
@@ -131,11 +131,9 @@ int cd(char **args)
             fprintf(stderr, "%s: No such file or directory\n", args[1]);
         }
     }
-    // keep going in the loop
-    return 1;
 }
 
-int dir(char **args)
+void dir(char **args)
 {
     char cwd[256];
     // call getcwd method
@@ -145,13 +143,11 @@ int dir(char **args)
     }
     else
     {
-        fprintf(stderr, "getcwd() error\n");
-        return 1;
+        fprintf(stderr, "ERROR: getcwd() error\n");
     }
-    return 1;
 }
 
-int history(Queue *q)
+void history(Queue *q)
 {
     int count = 0;
     // set temp to first node of queue
@@ -165,10 +161,9 @@ int history(Queue *q)
         // skip to next node
         temp = temp->next;
     }
-    return 1;
 }
 
-int other_commands(char **args)
+void other_commands(char **args)
 {
     int status;
     pid_t pid, wpid;
@@ -199,9 +194,10 @@ int other_commands(char **args)
     // child process
     else if (pid == 0)
     {
+        // execute command in child
         if (execvp(args[0], args) < 0)
-        { // If it is not built in function that defined from us ,execute it in child
-            fprintf(stderr, "Error: execvp() failed\n");
+        {
+            fprintf(stderr, "ERROR: execvp() failed\n");
         }
         exit(1);
     }
@@ -212,48 +208,49 @@ int other_commands(char **args)
         if (ampersand == 0)
         {
             // wait for the child process
-            while ((wpid = wait(&status)) > 0);
+            // https://stackoverflow.com/a/23872806
+            while ((wpid = wait(&status)) > 0)
+                ;
         }
     }
-    return 1;
 }
 
-int exec_commands(char **args, Queue *q)
+void exec_commands(char **args, Queue *q)
 {
     if (strcmp(args[0], "bye") == 0)
     {
-        return bye(args);
+        bye();
     }
     else if (strcmp(args[0], "cd") == 0)
     {
-        return cd(args);
+        cd(args);
     }
     else if (strcmp(args[0], "dir") == 0)
     {
-        return dir(args);
+        dir(args);
     }
     else if (strcmp(args[0], "history") == 0)
     {
-        return history(q);
+        history(q);
     }
     else
     {
-        return other_commands(args);
+        other_commands(args);
     }
 }
 
 char *read_args()
 {
-    char *str = malloc(sizeof(char) * MAX_CHAR);
-    if (!str)
+    char *args = malloc(sizeof(char) * MAX_CHAR);
+    if (!args)
     {
-        fprintf(stderr, "Error: malloc error\n");
+        fprintf(stderr, "ERROR: malloc error\n");
         exit(EXIT_FAILURE);
     }
 
-    fgets(str, MAX_CHAR, stdin);
-    str[strcspn(str, "\n")] = 0;
-    return str;
+    fgets(args, MAX_CHAR, stdin);
+    args[strcspn(args, "\n")] = 0;
+    return args;
 }
 
 char **parse_args(char *line)
@@ -264,7 +261,7 @@ char **parse_args(char *line)
     char **args = malloc(sizeof(char *) * MAX_ARG);
     if (!args)
     {
-        fprintf(stderr, "Error: malloc error\n");
+        fprintf(stderr, "ERROR: malloc error\n");
         exit(EXIT_FAILURE);
     }
     token = strtok(line, " ");
@@ -284,10 +281,9 @@ char **parse_args(char *line)
 
 void shell()
 {
-    int status = 1;
     // queue for history
     Queue *q = create_queue();
-    while (status)
+    while (1)
     {
         printf("myshell>");
         // read line
@@ -302,7 +298,7 @@ void shell()
         // parse arguments
         char **args = parse_args(line);
         // execute built-in commands
-        status = exec_commands(args, q);
+        exec_commands(args, q);
     }
 }
 
