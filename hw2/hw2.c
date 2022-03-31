@@ -103,7 +103,7 @@ void enqueue(Queue *q, char *str)
 
 void bye()
 {
-    // bye command simply returns 0 to finish the loop
+    // bye command simply calls exit to finish the program
     exit(0);
 }
 
@@ -188,7 +188,7 @@ void other_commands(char **args)
     // fork error
     if ((pid = fork()) < 0)
     {
-        fprintf(stderr, "*** ERROR: forking child process failed\n");
+        fprintf(stderr, "ERROR: Forking child process failed\n");
         exit(1);
     }
     // child process
@@ -198,8 +198,8 @@ void other_commands(char **args)
         if (execvp(args[0], args) < 0)
         {
             fprintf(stderr, "ERROR: execvp() failed\n");
+            exit(1);
         }
-        exit(1);
     }
     // parent process
     else
@@ -208,15 +208,75 @@ void other_commands(char **args)
         if (ampersand == 0)
         {
             // wait for the child process
-            // https://stackoverflow.com/a/23872806
-            while ((wpid = wait(&status)) > 0)
-                ;
+            // https://stackoverflow.com/a/19461842
+            waitpid(pid, &status, 0);
+        }
+    }
+}
+
+void exec_pipe(char **command1, char **command2)
+{
+    int fd[2], status;
+    pid_t child1, child2;
+    // create pipe
+    if (pipe(fd) != 0)
+    {
+        fprintf(stderr, "ERROR: Failed to create pipe!\n");
+    }
+    // create first child process
+    if ((child1 = fork()) == -1)
+    {
+        fprintf(stderr, "ERROR: Forking child process failed\n");
+    }
+    // if first child process
+    if (child1 == 0)
+    {
+        dup2(fd[1], STDOUT_FILENO);
+        // close pipes
+        close(fd[1]);
+        close(fd[0]);
+        // execute first command in pipe
+        if (execvp(command1[0], command1) < 0)
+        {
+            fprintf(stderr, "ERROR: Failed to execute command 1\n");
+        }
+    }
+    else
+    {
+        // create child 2
+        if ((child2 = fork()) == -1)
+        {
+            fprintf(stderr, "ERROR: Forking child process failed\n");
+        }
+        // if second child
+        if (child2 == 0)
+        {
+            dup2(fd[0], STDIN_FILENO);
+            // close pipes
+            close(fd[0]);
+            close(fd[1]);
+            // execute second command in pipe
+            if (execvp(command2[0], command2) < 0)
+            {
+                fprintf(stderr, "ERROR: Failed to execute command 2\n");
+            }
+        }
+        // parent process
+        else
+        {
+            // close pipes
+            close(fd[0]);
+            close(fd[1]);
+            // wait for child processes
+            waitpid(child1, &status, 0);
+            waitpid(child2, &status, 0);
         }
     }
 }
 
 void exec_commands(char **args, Queue *q)
 {
+    // check for first argument in command
     if (strcmp(args[0], "bye") == 0)
     {
         bye();
@@ -247,8 +307,9 @@ char *read_args()
         fprintf(stderr, "ERROR: malloc error\n");
         exit(EXIT_FAILURE);
     }
-
+    // get command from user
     fgets(args, MAX_CHAR, stdin);
+    // change new line to '\0' to make string
     args[strcspn(args, "\n")] = 0;
     return args;
 }
@@ -264,6 +325,7 @@ char **parse_args(char *line)
         fprintf(stderr, "ERROR: malloc error\n");
         exit(EXIT_FAILURE);
     }
+    // divide line with whitespace
     token = strtok(line, " ");
     while (token != NULL)
     {
@@ -271,12 +333,32 @@ char **parse_args(char *line)
         // strcspn function returns number of chars until
         // it sees the given string.
         token[strcspn(token, "\n")] = 0;
+        // store each word in command
         args[index] = token;
         index++;
         token = strtok(NULL, " ");
     }
 
     return args;
+}
+
+char **parse_pipe(char **args, char **command1, char **command2)
+{
+    int i = 0, j = 0;
+    // take left side of pipe command
+    while (strcmp(args[i], "|") != 0)
+    {
+        command1[i] = args[i];
+        i++;
+    }
+    i++;
+    // take right side of pipe command
+    while (args[i] != NULL)
+    {
+        command2[j] = args[i];
+        j++;
+        i++;
+    }
 }
 
 void shell()
@@ -293,12 +375,30 @@ void shell()
         // command in history queue will change
         char *str = malloc(sizeof(char) * MAX_CHAR);
         memcpy(str, line, sizeof(char) * MAX_CHAR);
-        // add copy of line to history queue
-        enqueue(q, str);
         // parse arguments
         char **args = parse_args(line);
-        // execute built-in commands
-        exec_commands(args, q);
+        // check if command is empty
+        if (*args != NULL)
+        {
+            // add copy of line to history queue
+            enqueue(q, str);
+            // check if arguments contain pipe
+            if (strstr(str, "|"))
+            {
+                // parse pipe command
+                char **command1 = malloc(sizeof(char *) * MAX_ARG);
+                char **command2 = malloc(sizeof(char *) * MAX_ARG);
+                parse_pipe(args, command1, command2);
+                // execute pipe command
+                exec_pipe(command1, command2);
+            }
+            else
+            {
+                // execute built-in commands
+                // or other commands
+                exec_commands(args, q);
+            }
+        }
     }
 }
 
