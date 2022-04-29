@@ -18,13 +18,13 @@ pthread_mutex_t thread_mutex = PTHREAD_MUTEX_INITIALIZER;
 void* thread_routine(void* arg) {    
     // Missing logic goes here if any
     pthread_mutex_lock(&thread_mutex);
-    while (n_currently_used_resources == N_MAX_AVAILABLE_RESOURCES)
+    while (n_currently_used_resources >= N_MAX_AVAILABLE_RESOURCES)
     {
         pthread_cond_wait(&cond, &thread_mutex);
     }
     pthread_mutex_unlock(&thread_mutex);
     /* TO-DO: Change ????? with appropriate expression below */
-    consume_resource_and_do_work((int)arg);
+    consume_resource_and_do_work((int)(long)arg);
     /* TO-DO: Change ????? with appropriate expression above */
     
     // Missing logic goes here if any
@@ -37,14 +37,15 @@ void manage_threads() {
     /* TO-DO: Only change ?????s with appropriate expressions below */
     pthread_t tids[100];
     for(int i = 0; i < 100; i++) {
-        pthread_create(&tids[i], NULL, thread_routine, (void*)i);
+        pthread_create(&tids[i], NULL, thread_routine, (void*)(long) i);
     }
     /* TO-DO: Only change ????? with appropriate expressions above */
     // Missing logic goes here if any
     for(int i = 0; i < 100; i++) {
         pthread_join(tids[i], NULL);
     }
-    //pthread_exit(NULL);
+    pthread_mutex_destroy(&thread_mutex);
+    pthread_cond_destroy(&cond);
 }
 /* 
     Don't change anything below this section!
