@@ -5,6 +5,6 @@ clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 test:
 	sudo dmesg -C
-	sudo insmod lkm_example.ko
-	sudo rmmod lkm_example.ko
+	sudo insmod hw4.ko pid=1
+	sudo rmmod hw4
 	dmesg
